@@ -24,15 +24,15 @@ moves. Each board's move limit is what a greedy bot (always take the biggest gai
 clear it, so every board can be won but you have to play at least as well as the bot.
 Pick a small (10×10), medium (14×14) or large (18×18) board; wins and streaks are kept per size.
 
-Controls: D-pad / arrows choose a colour (the cells it would take are outlined), A /
-Space / Enter floods. Keys 1–6 or clicking a cell / swatch pick a colour directly.
-B / Backspace goes to the menu, Y / R deals a new board, Esc (or Back) quits.
+Controls: D-pad / arrows pick a colour in the vertical sidebar (the cells it would take are
+outlined), A / Space / Enter floods. Keys 1–6 or clicking a cell / colour bar pick directly.
+B / Backspace returns to the menu (where you can switch between Paper and Ink themes or toggle
+optional colour-blind marks), Y / R deals a new board, Esc (or Back) quits.
 
 ## Credits
 
-UI font: [Fredoka](https://github.com/hafontia/Fredoka-One) by The Fredoka Project Authors,
-SIL Open Font License 1.1 (`assets/fonts/OFL.txt`; static Bold/Medium instances cut from the
-variable font).
+UI font: [Barlow](https://github.com/jpt/barlow) by Jeremy Tribby, SIL Open Font License 1.1
+(`assets/fonts/OFL.txt`).
 
 ## Package
 
