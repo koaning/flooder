@@ -450,16 +450,6 @@ local function poster_ribbon(y_top, y_bot, w_top, w_bot, alpha)
   end
 end
 
--- Crisp corner ticks for previewed frontier cells.
-local function corner_ticks(x, y, w, h, len, col, lw)
-  lg.setLineWidth(lw or 2)
-  setc(col)
-  lg.line(x, y + len, x, y, x + len, y)
-  lg.line(x + w - len, y, x + w, y, x + w, y + len)
-  lg.line(x + w, y + h - len, x + w, y + h, x + w - len, y + h)
-  lg.line(x + len, y + h, x, y + h, x, y + h - len)
-end
-
 ---------------------------------------------------------------------------
 -- Scenes
 
@@ -579,7 +569,7 @@ local function draw_top_bar()
   setc(th.muted)
   lg.print(st.w .. "×" .. st.h, BOARD_X, TOP_Y + 5)
 
-  -- Center: slim horizontal moves remaining bar
+  -- Center: slim borderless horizontal moves remaining bar
   local bar_x = 92
   local bar_w = 442
   local bar_y = TOP_Y + 9
@@ -587,9 +577,6 @@ local function draw_top_bar()
 
   setc(th.well)
   lg.rectangle("fill", bar_x, bar_y, bar_w, bar_h)
-  lg.setLineWidth(1)
-  setc(th.border)
-  lg.rectangle("line", bar_x + 0.5, bar_y + 0.5, bar_w - 1, bar_h - 1)
 
   if s.gauge > 0.002 then
     local fill_col = th.bar_ok
@@ -598,9 +585,9 @@ local function draw_top_bar()
     elseif s.gauge <= 0.35 then
       fill_col = th.bar_warn
     end
-    local fw = math.max(2, math.floor((bar_w - 2) * s.gauge + 0.5))
+    local fw = math.max(2, math.floor(bar_w * s.gauge + 0.5))
     setc(fill_col)
-    lg.rectangle("fill", bar_x + 1, bar_y + 1, fw, bar_h - 2)
+    lg.rectangle("fill", bar_x, bar_y, fw, bar_h)
   end
 
   -- Right: crisp moves counter
@@ -618,24 +605,9 @@ local function draw_board()
   local n = st.w
   local t = s.elapsed
 
-  -- Minimal print border around the board
-  setc(th.well)
-  lg.rectangle("fill", BOARD_X - 2, BOARD_Y - 2, BOARD_PX + 4, BOARD_PX + 4)
-  lg.setLineWidth(1.5)
-  setc(th.border)
-  lg.rectangle("line", BOARD_X - 2, BOARD_Y - 2, BOARD_PX + 4, BOARD_PX + 4)
-
-  local region = rules.region(st)
-  local preview = {}
-  if s.scene == "play" then
-    for _, p in ipairs(rules.preview(st, s.sel)) do
-      preview[(p.y - 1) * n + p.x] = true
-    end
-  end
-
   local lose = (s.scene == "gameover" and not st.won)
 
-  -- Pass 1: pure matte print tiles & fused owned territory
+  -- Pure borderless, seamless colour-field board
   for y = 1, st.h do
     for x = 1, n do
       local k = (y - 1) * n + x
@@ -653,62 +625,10 @@ local function draw_board()
       end
       local px, py = ox + (x - 1) * c, oy + (y - 1) * c
       if inset < c * 0.5 then
-        if region[k] then
-          local fill = lose and mix(col, th.bg, 0.45) or col
-          setc(fill)
-          local pad = math.floor(inset)
-          lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
-        else
-          local pad = math.max(1, math.floor(inset + 0.5))
-          local tile_col = lose and mix(col, th.bg, 0.52) or col
-          setc(tile_col)
-          lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
-        end
-      end
-    end
-  end
-
-  -- Pass 2: crisp ink frontier outline along edges between owned & unowned cells
-  lg.setLineWidth(2)
-  setc(th.frontier, lose and 0.40 or 0.92)
-  for y = 1, st.h do
-    for x = 1, n do
-      local k = (y - 1) * n + x
-      if region[k] then
-        local px, py = ox + (x - 1) * c, oy + (y - 1) * c
-        if y > 1 and not region[k - n] then
-          lg.line(px, py + 1, px + c, py + 1)
-        end
-        if y < st.h and not region[k + n] then
-          lg.line(px, py + c - 1, px + c, py + c - 1)
-        end
-        if x > 1 and not region[k - 1] then
-          lg.line(px + 1, py, px + 1, py + c)
-        end
-        if x < n and not region[k + 1] then
-          lg.line(px + c - 1, py, px + c - 1, py + c)
-        end
-      end
-    end
-  end
-
-  -- Quiet top-left origin pip
-  if region[1] then
-    setc(th.frontier, lose and 0.28 or 0.72)
-    lg.rectangle("fill", ox + 5, oy + 5, 4, 4)
-  end
-
-  -- Pass 3: calm, crisp corner ticks on previewed frontier cells
-  if s.scene == "play" then
-    local blen = math.max(5, math.floor(c * 0.28))
-    for y = 1, st.h do
-      for x = 1, n do
-        local k = (y - 1) * n + x
-        if preview[k] then
-          local px, py = ox + (x - 1) * c, oy + (y - 1) * c
-          corner_ticks(px + 2, py + 2, c - 4, c - 4, blen, { 0.08, 0.07, 0.06, 0.65 }, 3)
-          corner_ticks(px + 3, py + 3, c - 6, c - 6, blen - 1, { 0.98, 0.96, 0.92, 0.96 }, 2)
-        end
+        local fill = lose and mix(col, th.bg, 0.48) or col
+        setc(fill)
+        local pad = math.floor(inset)
+        lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
       end
     end
   end
@@ -720,65 +640,41 @@ local function draw_sidebar()
   local th = cur_theme()
   local cur_idx = st.grid[1][1]
 
-  -- Vertical stack of 6 pure colour bars (Up/Down selects; bold caret marks choice)
+  -- Vertical stack of 6 pure solid colour bars (all 6 visible; caret marks selection)
   for i = 1, COLORS do
     local rx, ry, rw, rh = swatch_rect(i)
     local is_cur = (i == cur_idx)
     local is_sel = (i == s.sel and s.scene == "play")
     local col = PALETTE[i]
 
-    -- Bold crisp caret in front of the selected colour
+    -- Crisp caret in front of the selected colour
     if is_sel then
       caret(SIDE_X + 2, math.floor(ry + rh / 2), 7, th.ink)
     end
 
-    if is_cur then
-      -- Active flood colour: quiet recessed slot with a left colour edge bar
-      setc(th.surface)
-      lg.rectangle("fill", rx, ry, rw, rh)
-      setc(col, 0.55)
-      lg.rectangle("fill", rx, ry, 8, rh)
-      lg.setLineWidth(is_sel and 2 or 1)
-      setc(is_sel and th.ink or th.border)
-      lg.rectangle("line", rx + 0.5, ry + 0.5, rw - 1, rh - 1)
+    setc(col)
+    lg.rectangle("fill", rx, ry, rw, rh)
 
-      lg.setFont(fonts.micro)
-      setc(th.muted)
-      lg.printf("ACTIVE", rx + 14, ry + 16, rw - 24, "right")
-    else
-      -- Pure flat matte colour bar
-      setc(col)
-      lg.rectangle("fill", rx, ry, rw, rh)
-
-      -- Selected colour gets a crisp ink outline & clean +N gain tag
-      if is_sel then
-        lg.setLineWidth(2.5)
-        setc(th.ink)
-        lg.rectangle("line", rx - 1.5, ry - 1.5, rw + 3, rh + 3)
-
-        local g = rules.gain(st, i)
-        local tag = "+" .. tostring(g)
-        local tw = math.max(38, fonts.small:getWidth(tag) + 14)
-        setc(THEMES.paper.ink, 0.88)
-        lg.rectangle("fill", rx + rw - tw - 7, ry + 11, tw, 26)
-        lg.setFont(fonts.small)
-        setc(THEMES.paper.bg)
-        lg.printf(tag, rx + rw - tw - 7, ry + 15, tw, "center")
-      end
+    -- Quiet gain tag on the selected bar when it adds tiles
+    if is_sel and not is_cur then
+      local g = rules.gain(st, i)
+      local tag = "+" .. tostring(g)
+      local tw = math.max(38, fonts.small:getWidth(tag) + 14)
+      setc(THEMES.paper.ink, 0.88)
+      lg.rectangle("fill", rx + rw - tw - 7, ry + 11, tw, 26)
+      lg.setFont(fonts.small)
+      setc(THEMES.paper.bg)
+      lg.printf(tag, rx + rw - tw - 7, ry + 15, tw, "center")
     end
   end
 
   -- Quiet minimal console legend at the bottom of the sidebar
-  lg.setLineWidth(1)
-  setc(th.border, 0.55)
-  lg.line(SWATCH_X, 396, SIDE_X + SIDE_W, 396)
-
   lg.setFont(fonts.micro)
   setc(th.muted)
   if s.scene == "play" then
-    lg.print("UP/DN  PICK", SWATCH_X, 407)
-    lg.print("A  FLOOD", SWATCH_X, 426)
-    lg.print("Y  NEW   ·   B  MENU", SWATCH_X, 445)
+    lg.print("UP/DN  PICK", SWATCH_X, 405)
+    lg.print("A  FLOOD", SWATCH_X, 424)
+    lg.print("Y  NEW   ·   B  MENU", SWATCH_X, 443)
   else
     lg.print("A  NEW BOARD", SWATCH_X, 412)
     lg.print("B  MENU", SWATCH_X, 432)
