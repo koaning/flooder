@@ -5,9 +5,10 @@ flood the board in as few moves as you can
 A [LÖVE](https://love2d.org) (11.5) game built for handhelds (PortMaster /
 [Geyser](https://github.com/koaning/geyser)) and the browser via `love.js`.
 
-| Cartridge | Gameplay | Won |
-| --- | --- | --- |
-| ![LÖVE cartridge](docs/screenshots/cart.png) | ![Gameplay](docs/screenshots/gameplay.png) | ![Won round](docs/screenshots/win.png) |
+| Title | Gameplay |
+| --- | --- |
+| ![Title](docs/screenshots/title.png) | ![Gameplay](docs/screenshots/gameplay.png) |
+| ![Won round](docs/screenshots/win.png) | ![Lost round](docs/screenshots/lose.png) |
 
 ## Play
 
@@ -27,11 +28,17 @@ Controls: D-pad / arrows choose a colour (the cells it would take are outlined),
 Space / Enter floods. Keys 1–6 or clicking a cell / swatch pick a colour directly.
 B / Backspace goes to the menu, Y / R deals a new board, Esc (or Back) quits.
 
+## Credits
+
+UI font: [Fredoka](https://github.com/hafontia/Fredoka-One) by The Fredoka Project Authors,
+SIL Open Font License 1.1 (`assets/fonts/OFL.txt`; static Bold/Medium instances cut from the
+variable font).
+
 ## Package
 
 ```sh
 make love           # build dist/flooder.love
-make screenshots    # capture docs/screenshots/{title,cart,gameplay,win}.png
+make screenshots    # capture docs/screenshots/{title,cart,gameplay,win,lose}.png
 make cart           # build dist/flooder.love.png (PNG cover + .love zip)
 ```
 

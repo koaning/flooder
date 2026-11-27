@@ -5,6 +5,7 @@
 --   docs/screenshots/cart.png       Geyser-style cartridge label (used by `make cart`)
 --   docs/screenshots/gameplay.png   a medium board part-way through
 --   docs/screenshots/win.png        a won round
+--   docs/screenshots/lose.png       a lost round
 
 return {
   -- Deterministic save state for screenshots (never touches real user saves)
@@ -48,5 +49,18 @@ return {
     end
     ctx.frame(40)
     ctx.shot("win.png")
+
+    -- Lose a small board by alternating two colours.
+    ctx.key("backspace")
+    ctx.key("left")
+    ctx.key("space")
+    st = game.state.st
+    local a, b = st.grid[1][1] % 6 + 1, (st.grid[1][1] + 1) % 6 + 1
+    while game.state.scene == "play" do
+      ctx.key(tostring(st.moves % 2 == 0 and a or b))
+      ctx.frame(2)
+    end
+    ctx.frame(50)
+    ctx.shot("lose.png")
   end,
 }

@@ -41,11 +41,12 @@ while game.state.scene == "play" do
     g.key(tostring(c))
   elseif turn % 3 == 1 then
     -- Move the selection with the D-pad, then confirm with A
-    while game.state.sel ~= c do g.gamepad("dpdown") end
+    while game.state.sel ~= c do g.gamepad("dpright") end
     g.gamepad("a")
   else
-    -- 640x480 window: virtual coords map 1:1; swatches start at y=150, 48 apart
-    g.love.mousepressed(500, 150 + (c - 1) * 48 + 20, 1)
+    -- 640x480 window: virtual coords map 1:1 to window coords
+    local ox, oy = game.orb_center(c)
+    g.love.mousepressed(ox, oy, 1)
     g.step()
   end
   assert(turn < 100, "game should end")
@@ -74,9 +75,8 @@ g.key("r")
 st = game.state.st
 local target = st.grid[1][2] ~= st.grid[1][1] and st.grid[1][2] or nil
 if target then
-  local c = math.floor(416 / st.w)
-  local pad = math.floor((416 - c * st.w) / 2)
-  g.love.mousepressed(28 + pad + c * 1.5, 32 + pad + c * 0.5, 1)
+  local cx, cy = game.cell_center(2, 1)
+  g.love.mousepressed(cx, cy, 1)
   assert(st.moves == 1 and st.grid[1][1] == target, "clicking a cell should flood with its colour")
 end
 
