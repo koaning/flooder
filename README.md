@@ -5,10 +5,10 @@ flood the board in as few moves as you can
 A [LÖVE](https://love2d.org) (11.5) game built for handhelds (PortMaster /
 [Geyser](https://github.com/koaning/geyser)) and the browser via `love.js`.
 
-| Title | Gameplay |
+| Cartridge | Gameplay |
 | --- | --- |
-| ![Title](docs/screenshots/title.png) | ![Gameplay](docs/screenshots/gameplay.png) |
-| ![Won round](docs/screenshots/win.png) | ![Lost round](docs/screenshots/lose.png) |
+| ![LÖVE cartridge](docs/screenshots/cart.png) | ![Gameplay](docs/screenshots/gameplay.png) |
+| ![Title](docs/screenshots/title.png) | ![Won round](docs/screenshots/win.png) |
 
 ## Play
 
