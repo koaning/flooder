@@ -14,7 +14,7 @@ local SIZES = {
   { name = "LARGE", n = 18 },
 }
 
--- Vintage Japanese print poster 6-colour palette (distinct hues & values without shapes).
+-- Vintage Japanese print poster 6-colour palette.
 local PALETTE = {
   { 0.792, 0.239, 0.165 }, -- 1: vermilion red
   { 0.882, 0.494, 0.145 }, -- 2: burnt orange
@@ -60,13 +60,10 @@ local SIDE_X, SIDE_W = 466, 150
 local SWATCH_X, SWATCH_W, SWATCH_H, SWATCH_STEP = SIDE_X + 20, SIDE_W - 20, 48, 57
 
 -- Title menu hit regions (centered cleanly inside cartridge safe core x=80..560).
-local MENU_CARD_W, MENU_CARD_H, MENU_CARD_GAP = 136, 114, 16
-local MENU_CARDS_X0 = math.floor((W - (MENU_CARD_W * 3 + MENU_CARD_GAP * 2)) / 2)
-local MENU_CARDS_Y = 138
-local MENU_OPT_X, MENU_OPT_W, MENU_OPT_H = 128, W - 256, 30
-local MENU_THEME_Y = 276
-local MENU_MARKS_Y = 310
-local MENU_PLAY_RECT = { x = 190, y = 382, w = W - 380, h = 40 }
+local MENU_X, MENU_W, MENU_ROW_H = 124, W - 248, 36
+local MENU_GRID_Y = 258
+local MENU_THEME_Y = 302
+local MENU_PLAY_RECT = { x = 180, y = 362, w = W - 360, h = 44 }
 
 local fonts = {}
 
@@ -75,9 +72,8 @@ game.state = {
   st = nil,
   size = 2,
   sel = 1,
-  menu_row = 1,   -- 1 = board size / play, 2 = theme (paper/ink), 3 = marks (off/on)
+  menu_row = 1, -- 1 = grid size / play, 2 = theme (paper/ink)
   theme = "paper",
-  marks = false,  -- optional subtle colour-blind marks (off by default)
   elapsed = 0,
   pop = {},
   stats = {},
@@ -94,7 +90,7 @@ local function cur_theme()
 end
 
 ---------------------------------------------------------------------------
--- Stats & preferences persistence
+-- Persistence (stats kept for save compatibility; theme persisted too)
 
 local function blank_stats()
   local t = {}
@@ -104,25 +100,22 @@ local function blank_stats()
   return t
 end
 
--- stats.txt holds lines like "2 played 5" plus optional "0 theme 1" / "0 marks 1".
+-- stats.txt holds lines like "2 played 5" plus optional "0 theme 1" (0=paper, 1=ink).
 local function load_stats()
   local t = blank_stats()
   local theme = "paper"
-  local marks = false
-  if not love.filesystem.getInfo(SAVE_FILE) then return t, theme, marks end
+  if not love.filesystem.getInfo(SAVE_FILE) then return t, theme end
   local raw = love.filesystem.read(SAVE_FILE) or ""
   for i, k, v in raw:gmatch("(%d+) (%a[%w_]*) (%-?%d+)") do
     i = tonumber(i)
     v = tonumber(v)
     if i == 0 and k == "theme" then
       theme = (v == 1) and "ink" or "paper"
-    elseif i == 0 and k == "marks" then
-      marks = (v == 1)
     elseif t[i] and t[i][k] ~= nil then
       t[i][k] = v
     end
   end
-  return t, theme, marks
+  return t, theme
 end
 
 local function save_stats()
@@ -133,7 +126,6 @@ local function save_stats()
     end
   end
   lines[#lines + 1] = "0 theme " .. (game.state.theme == "ink" and 1 or 0)
-  lines[#lines + 1] = "0 marks " .. (game.state.marks and 1 or 0)
   love.filesystem.write(SAVE_FILE, table.concat(lines, "\n") .. "\n")
 end
 
@@ -142,12 +134,6 @@ local function toggle_theme()
   s.theme = (s.theme == "paper") and "ink" or "paper"
   local th = cur_theme()
   love.graphics.setBackgroundColor(th.bg[1], th.bg[2], th.bg[3])
-  save_stats()
-end
-
-local function toggle_marks()
-  local s = game.state
-  s.marks = not s.marks
   save_stats()
 end
 
@@ -244,33 +230,25 @@ local function action(a, arg)
   if a == "quit" then
     request_quit()
   elseif s.scene == "title" then
-    if a == "up" then
-      s.menu_row = (s.menu_row - 2) % 3 + 1
-    elseif a == "down" then
-      s.menu_row = s.menu_row % 3 + 1
+    if a == "up" or a == "down" then
+      s.menu_row = (s.menu_row == 1) and 2 or 1
     elseif a == "left" then
       if s.menu_row == 1 then
         s.size = (s.size - 2) % #SIZES + 1
-      elseif s.menu_row == 2 then
-        toggle_theme()
       else
-        toggle_marks()
+        toggle_theme()
       end
     elseif a == "right" then
       if s.menu_row == 1 then
         s.size = s.size % #SIZES + 1
-      elseif s.menu_row == 2 then
-        toggle_theme()
       else
-        toggle_marks()
+        toggle_theme()
       end
     elseif a == "ok" then
       if s.menu_row == 1 then
         start_round()
-      elseif s.menu_row == 2 then
-        toggle_theme()
       else
-        toggle_marks()
+        toggle_theme()
       end
     elseif a == "start" then
       start_round()
@@ -308,22 +286,21 @@ function game.load()
   local bold = "assets/fonts/Barlow-Bold.ttf"
   local semi = "assets/fonts/Barlow-SemiBold.ttf"
   local med = "assets/fonts/Barlow-Medium.ttf"
-  fonts.logo = love.graphics.newFont(bold, 62)
+  fonts.logo = love.graphics.newFont(bold, 66)
   fonts.banner = love.graphics.newFont(bold, 38)
   fonts.hud = love.graphics.newFont(bold, 20)
   fonts.sub = love.graphics.newFont(semi, 16)
   fonts.body = love.graphics.newFont(semi, 15)
-  fonts.small = love.graphics.newFont(semi, 13)
+  fonts.small = love.graphics.newFont(semi, 14)
   fonts.micro = love.graphics.newFont(med, 12)
   game.state.scene = "title"
   game.state.menu_row = 1
   game.state.st = nil
   game.state.elapsed = 0
   game.state.pop = {}
-  local stats, theme, marks = load_stats()
+  local stats, theme = load_stats()
   game.state.stats = stats
   game.state.theme = theme
-  game.state.marks = marks
   local th = cur_theme()
   love.graphics.setBackgroundColor(th.bg[1], th.bg[2], th.bg[3])
 end
@@ -388,26 +365,21 @@ function game.mousepressed(x, y, button)
   local s = game.state
   local vx, vy = to_virtual(x, y)
   if s.scene == "title" then
-    for i = 1, #SIZES do
-      local cx = MENU_CARDS_X0 + (i - 1) * (MENU_CARD_W + MENU_CARD_GAP)
-      if in_rect(vx, vy, cx, MENU_CARDS_Y, MENU_CARD_W, MENU_CARD_H) then
-        s.menu_row = 1
-        if s.size == i then
-          start_round()
-        else
-          s.size = i
-        end
-        return
+    if in_rect(vx, vy, MENU_X, MENU_GRID_Y, MENU_W, MENU_ROW_H) then
+      s.menu_row = 1
+      -- Clicking left/middle/right thirds of the size choices picks directly
+      local opt_x0 = MENU_X + 150
+      if vx >= opt_x0 then
+        local idx = math.min(#SIZES, math.max(1, math.floor((vx - opt_x0) / ((MENU_X + MENU_W - opt_x0) / #SIZES)) + 1))
+        s.size = idx
+      else
+        s.size = s.size % #SIZES + 1
       end
-    end
-    if in_rect(vx, vy, MENU_OPT_X, MENU_THEME_Y, MENU_OPT_W, MENU_OPT_H) then
-      s.menu_row = 2
-      toggle_theme()
       return
     end
-    if in_rect(vx, vy, MENU_OPT_X, MENU_MARKS_Y, MENU_OPT_W, MENU_OPT_H) then
-      s.menu_row = 3
-      toggle_marks()
+    if in_rect(vx, vy, MENU_X, MENU_THEME_Y, MENU_W, MENU_ROW_H) then
+      s.menu_row = 2
+      toggle_theme()
       return
     end
     if in_rect(vx, vy, MENU_PLAY_RECT.x, MENU_PLAY_RECT.y, MENU_PLAY_RECT.w, MENU_PLAY_RECT.h) then
@@ -455,39 +427,12 @@ local function caret(x, cy, size, col)
   lg.polygon("fill", x, cy - size, x, cy + size, x + math.floor(size * 1.25), cy)
 end
 
--- Optional subtle geometric marks (only rendered when MARKS: ON is chosen in menu).
-local function mark(i, cx, cy, r, col, alpha)
-  cx, cy = math.floor(cx + 0.5), math.floor(cy + 0.5)
-  local s = math.max(3, math.floor(r + 0.5))
-  lg.setColor(col[1], col[2], col[3], alpha or 0.72)
-  lg.setLineWidth(1.8)
-  if i == 1 then
-    lg.circle("fill", cx, cy, s * 0.52)
-  elseif i == 2 then
-    local arm = math.floor(s * 0.72)
-    lg.line(cx - arm, cy, cx + arm, cy)
-    lg.line(cx, cy - arm, cx, cy + arm)
-  elseif i == 3 then
-    local hs = math.floor(s * 0.55)
-    lg.rectangle("line", cx - hs, cy - hs, hs * 2, hs * 2)
-  elseif i == 4 then
-    local d = math.floor(s * 0.72)
-    lg.polygon("fill", cx, cy - d, cx + d, cy, cx, cy + d, cx - d, cy)
-  elseif i == 5 then
-    lg.circle("line", cx, cy, s * 0.58)
-  else
-    local d = math.floor(s * 0.68)
-    lg.polygon("fill", cx, cy - d, cx + d, cy + math.floor(d * 0.75), cx - d, cy + math.floor(d * 0.75))
-  end
-end
-
 -- Flaring 6-colour retro print ribbon (inspired by vintage Japanese graphic posters).
 local function poster_ribbon(y_top, y_bot, w_top, w_bot, alpha)
-  local steps = 22
+  local steps = 24
   local cx = W / 2
   for k = 0, steps - 1 do
     local t0, t1 = k / steps, (k + 1) / steps
-    -- Smooth gentle outward flare toward the bottom of the poster
     local e0, e1 = t0 * t0, t1 * t1
     local y0 = y_top + (y_bot - y_top) * t0
     local y1 = y_top + (y_bot - y_top) * t1
@@ -505,16 +450,6 @@ local function poster_ribbon(y_top, y_bot, w_top, w_bot, alpha)
   end
 end
 
--- Crisp corner ticks for previewed frontier cells.
-local function corner_ticks(x, y, w, h, len, col, lw)
-  lg.setLineWidth(lw or 2)
-  setc(col)
-  lg.line(x, y + len, x, y, x + len, y)
-  lg.line(x + w - len, y, x + w, y, x + w, y + len)
-  lg.line(x + w, y + h - len, x + w, y + h, x + w - len, y + h)
-  lg.line(x + len, y + h, x, y + h, x, y + h - len)
-end
-
 ---------------------------------------------------------------------------
 -- Scenes
 
@@ -525,128 +460,85 @@ local function draw_title()
   setc(th.bg)
   lg.rectangle("fill", 0, 0, W, H)
 
-  -- Subtle editorial poster margin frame (visible on 640x480; clean inside cart.png)
+  -- Subtle editorial poster margin frame
   lg.setLineWidth(1.5)
   setc(th.border, 0.55)
   lg.rectangle("line", 14, 14, W - 28, H - 28)
 
-  -- Iconic 6-colour retro print ribbon flaring cleanly from the header rule to the bottom
-  poster_ribbon(114, H - 14, 130, 252, 0.96)
+  -- Iconic 6-colour retro print ribbon flaring generously across the poster
+  poster_ribbon(126, H - 14, 136, 264, 0.97)
 
   -- Top bold ink poster headline & subtitle above the rule (cartridge-safe x=80..560)
   lg.setFont(fonts.logo)
   setc(th.ink)
-  lg.printf("FLOODER", 80, 18, W - 160, "center")
+  lg.printf("FLOODER", 80, 22, W - 160, "center")
 
   lg.setFont(fonts.micro)
   setc(th.muted)
-  lg.printf("REPAINT THE BOARD WITHIN THE MOVE LIMIT", 80, 88, W - 160, "center")
+  lg.printf("FLOOD THE BOARD WITHIN THE MOVE LIMIT", 80, 98, W - 160, "center")
 
-  -- Crisp horizontal ink rule anchoring the ribbon cleanly with zero gaps
+  -- Crisp horizontal ink rule anchoring the ribbon
   setc(th.ink)
-  lg.rectangle("fill", 96, 111, W - 192, 3)
+  lg.rectangle("fill", 96, 123, W - 192, 3)
 
-  -- Row 1: Board Size Specimen Cards (all 3 inside x=96..544 -> cartridge safe!)
+  -- Compact Row 1: GRID (10×10 / 14×14 / 18×18)
   local row1 = (s.menu_row == 1)
+  setc(th.bg)
+  lg.rectangle("fill", MENU_X, MENU_GRID_Y, MENU_W, MENU_ROW_H)
+  lg.setLineWidth(row1 and 2 or 1)
+  setc(row1 and th.ink or th.border)
+  lg.rectangle("line", MENU_X + 0.5, MENU_GRID_Y + 0.5, MENU_W - 1, MENU_ROW_H - 1)
+  if row1 then
+    caret(MENU_X + 12, MENU_GRID_Y + MENU_ROW_H / 2, 5.5, th.ink)
+  end
+
+  lg.setFont(fonts.small)
+  setc(row1 and th.ink or th.muted)
+  lg.print("GRID", MENU_X + 30, MENU_GRID_Y + 9)
+
+  -- Three clean inline grid-size options on the right
+  local opts_x = MENU_X + 148
+  local opts_w = MENU_W - 160
+  local col_w = opts_w / #SIZES
   for i, size in ipairs(SIZES) do
     local on = (i == s.size)
-    local cx = MENU_CARDS_X0 + (i - 1) * (MENU_CARD_W + MENU_CARD_GAP)
-    local cy = MENU_CARDS_Y
-
-    -- Solid paper/charcoal plate over the ribbon
-    setc(on and th.bg or th.surface)
-    lg.rectangle("fill", cx, cy, MENU_CARD_W, MENU_CARD_H)
-    lg.setLineWidth((on and row1) and 2.5 or 1.5)
-    setc((on and row1) and th.ink or th.border)
-    lg.rectangle("line", cx + 0.5, cy + 0.5, MENU_CARD_W - 1, MENU_CARD_H - 1)
-
-    -- Pure-colour proportional mini-board specimen (3x3, 4x4, 5x5)
-    local m = i + 2
-    local box = 54
-    local cell = math.floor(box / m)
-    local gw = cell * m
-    local gx = math.floor(cx + (MENU_CARD_W - gw) / 2)
-    local gy = cy + 12
-    setc(th.well)
-    lg.rectangle("fill", gx - 2, gy - 2, gw + 4, gw + 4)
-
-    local fc = PALETTE[((i * 2) % COLORS) + 1]
-    for yy = 1, m do
-      for xx = 1, m do
-        local tx, ty = gx + (xx - 1) * cell, gy + (yy - 1) * cell
-        if xx + yy <= i + 2 then
-          setc(fc)
-          lg.rectangle("fill", tx, ty, cell, cell)
-        else
-          local ci = ((xx * 3 + yy * 5 + i * 7) % COLORS) + 1
-          if ci == ((i * 2) % COLORS) + 1 then ci = (ci % COLORS) + 1 end
-          local col = on and PALETTE[ci] or mix(PALETTE[ci], th.surface, 0.35)
-          setc(col)
-          lg.rectangle("fill", tx + 0.5, ty + 0.5, cell - 1, cell - 1)
-        end
-      end
-    end
-
-    -- Size name & grid dimensions
-    lg.setFont(fonts.sub)
-    setc(on and th.ink or th.muted)
-    lg.printf(size.name, cx, cy + 72, MENU_CARD_W, "center")
-    lg.setFont(fonts.micro)
-    setc(on and th.ink or th.muted, on and 0.85 or 0.75)
-    lg.printf(size.n .. " × " .. size.n, cx, cy + 92, MENU_CARD_W, "center")
-
-    -- Crisp top caret on selected size when Row 1 is focused
-    if on and row1 then
+    local ox = opts_x + (i - 1) * col_w
+    local label = size.n .. "×" .. size.n
+    lg.setFont(on and fonts.body or fonts.small)
+    setc(on and th.ink or th.muted, on and 1 or 0.55)
+    lg.printf(label, ox, MENU_GRID_Y + (on and 8 or 9), col_w, "center")
+    if on then
       setc(th.ink)
-      lg.polygon("fill", cx + MENU_CARD_W / 2 - 6, cy - 9, cx + MENU_CARD_W / 2 + 6, cy - 9, cx + MENU_CARD_W / 2, cy - 2)
+      lg.rectangle("fill", ox + 14, MENU_GRID_Y + MENU_ROW_H - 6, col_w - 28, 2)
     end
   end
 
-  -- Row 2 & Row 3: Clean Menu Options (Theme & Optional Marks live here, NOT in gameplay!)
-  local function draw_option_row(row_idx, y, label, val_left, val_right, right_active)
-    local focused = (s.menu_row == row_idx)
-    setc(th.bg)
-    lg.rectangle("fill", MENU_OPT_X, y, MENU_OPT_W, MENU_OPT_H)
-    lg.setLineWidth(focused and 2 or 1)
-    setc(focused and th.ink or th.border)
-    lg.rectangle("line", MENU_OPT_X + 0.5, y + 0.5, MENU_OPT_W - 1, MENU_OPT_H - 1)
-
-    if focused then
-      caret(MENU_OPT_X + 10, y + MENU_OPT_H / 2, 5, th.ink)
-    end
-
-    lg.setFont(fonts.small)
-    setc(focused and th.ink or th.muted)
-    lg.print(label, MENU_OPT_X + 26, y + 7)
-
-    -- Two-state clean editorial toggle on the right
-    local rx = MENU_OPT_X + MENU_OPT_W - 134
-    lg.setFont(fonts.small)
-    setc(not right_active and th.ink or th.muted, not right_active and 1 or 0.55)
-    lg.printf(val_left, rx, y + 7, 54, "right")
-    setc(th.muted, 0.5)
-    lg.printf("/", rx + 56, y + 7, 12, "center")
-    setc(right_active and th.ink or th.muted, right_active and 1 or 0.55)
-    lg.printf(val_right, rx + 70, y + 7, 54, "left")
-  end
-
-  draw_option_row(2, MENU_THEME_Y, "THEME", "PAPER", "INK", s.theme == "ink")
-  draw_option_row(3, MENU_MARKS_Y, "MARKS", "OFF", "ON", s.marks)
-
-  -- Quiet stats bar seated cleanly on a paper strip
-  local stat = s.stats[s.size]
+  -- Compact Row 2: THEME (PAPER / INK)
+  local row2 = (s.menu_row == 2)
   setc(th.bg)
-  lg.rectangle("fill", 128, 348, W - 256, 24)
-  lg.setFont(fonts.micro)
-  setc(th.muted)
-  if stat.played > 0 then
-    local line = "WINS " .. stat.won .. "/" .. stat.played
-      .. "   ·   STREAK " .. stat.streak
-      .. "   ·   BEST " .. stat.best_streak
-    lg.printf(line, 128, 353, W - 256, "center")
-  else
-    lg.printf("EVERY BOARD IS WINNABLE WITHIN THE LIMIT", 128, 353, W - 256, "center")
+  lg.rectangle("fill", MENU_X, MENU_THEME_Y, MENU_W, MENU_ROW_H)
+  lg.setLineWidth(row2 and 2 or 1)
+  setc(row2 and th.ink or th.border)
+  lg.rectangle("line", MENU_X + 0.5, MENU_THEME_Y + 0.5, MENU_W - 1, MENU_ROW_H - 1)
+  if row2 then
+    caret(MENU_X + 12, MENU_THEME_Y + MENU_ROW_H / 2, 5.5, th.ink)
   end
+
+  lg.setFont(fonts.small)
+  setc(row2 and th.ink or th.muted)
+  lg.print("THEME", MENU_X + 30, MENU_THEME_Y + 9)
+
+  local is_ink = (s.theme == "ink")
+  local rx = MENU_X + MENU_W - 154
+  lg.setFont(not is_ink and fonts.body or fonts.small)
+  setc(not is_ink and th.ink or th.muted, not is_ink and 1 or 0.55)
+  lg.printf("PAPER", rx, MENU_THEME_Y + (not is_ink and 8 or 9), 60, "right")
+  lg.setFont(fonts.small)
+  setc(th.muted, 0.5)
+  lg.printf("/", rx + 62, MENU_THEME_Y + 9, 14, "center")
+  lg.setFont(is_ink and fonts.body or fonts.small)
+  setc(is_ink and th.ink or th.muted, is_ink and 1 or 0.55)
+  lg.printf("INK", rx + 78, MENU_THEME_Y + (is_ink and 8 or 9), 60, "left")
 
   -- Bold Matte Ink Play Bar
   local pr = MENU_PLAY_RECT
@@ -654,14 +546,15 @@ local function draw_title()
   lg.rectangle("fill", pr.x, pr.y, pr.w, pr.h)
   lg.setFont(fonts.hud)
   setc(th.bg)
-  lg.printf("PLAY  " .. SIZES[s.size].name, pr.x, pr.y + 8, pr.w, "center")
+  local n = SIZES[s.size].n
+  lg.printf("PLAY   " .. n .. "×" .. n, pr.x, pr.y + 10, pr.w, "center")
 
-  -- Minimal single-line footer legend on a crisp paper plate
+  -- Minimal single-line footer legend on a clean paper slip
   setc(th.bg)
-  lg.rectangle("fill", 136, 434, W - 272, 22)
+  lg.rectangle("fill", 140, 424, W - 280, 22)
   lg.setFont(fonts.micro)
   setc(th.muted)
-  lg.printf("D-PAD  NAVIGATE     ·     A / ENTER  SELECT", 136, 438, W - 272, "center")
+  lg.printf("D-PAD  SELECT     ·     A / ENTER  PLAY", 140, 428, W - 280, "center")
 end
 
 local function draw_top_bar()
@@ -674,19 +567,16 @@ local function draw_top_bar()
   -- Left: compact board size
   lg.setFont(fonts.small)
   setc(th.muted)
-  lg.print(SIZES[s.size].name .. "  " .. st.w .. "×" .. st.h, BOARD_X, TOP_Y + 6)
+  lg.print(st.w .. "×" .. st.h, BOARD_X, TOP_Y + 5)
 
-  -- Center: slim horizontal moves remaining bar
-  local bar_x = 148
-  local bar_w = 386
+  -- Center: slim borderless horizontal moves remaining bar
+  local bar_x = 92
+  local bar_w = 442
   local bar_y = TOP_Y + 9
   local bar_h = 10
 
   setc(th.well)
   lg.rectangle("fill", bar_x, bar_y, bar_w, bar_h)
-  lg.setLineWidth(1)
-  setc(th.border)
-  lg.rectangle("line", bar_x + 0.5, bar_y + 0.5, bar_w - 1, bar_h - 1)
 
   if s.gauge > 0.002 then
     local fill_col = th.bar_ok
@@ -695,9 +585,9 @@ local function draw_top_bar()
     elseif s.gauge <= 0.35 then
       fill_col = th.bar_warn
     end
-    local fw = math.max(2, math.floor((bar_w - 2) * s.gauge + 0.5))
+    local fw = math.max(2, math.floor(bar_w * s.gauge + 0.5))
     setc(fill_col)
-    lg.rectangle("fill", bar_x + 1, bar_y + 1, fw, bar_h - 2)
+    lg.rectangle("fill", bar_x, bar_y, fw, bar_h)
   end
 
   -- Right: crisp moves counter
@@ -715,24 +605,9 @@ local function draw_board()
   local n = st.w
   local t = s.elapsed
 
-  -- Minimal print border around the board
-  setc(th.well)
-  lg.rectangle("fill", BOARD_X - 2, BOARD_Y - 2, BOARD_PX + 4, BOARD_PX + 4)
-  lg.setLineWidth(1.5)
-  setc(th.border)
-  lg.rectangle("line", BOARD_X - 2, BOARD_Y - 2, BOARD_PX + 4, BOARD_PX + 4)
-
-  local region = rules.region(st)
-  local preview = {}
-  if s.scene == "play" then
-    for _, p in ipairs(rules.preview(st, s.sel)) do
-      preview[(p.y - 1) * n + p.x] = true
-    end
-  end
-
   local lose = (s.scene == "gameover" and not st.won)
 
-  -- Pass 1: pure matte print tiles & fused owned territory
+  -- Pure borderless, seamless colour-field board
   for y = 1, st.h do
     for x = 1, n do
       local k = (y - 1) * n + x
@@ -750,65 +625,10 @@ local function draw_board()
       end
       local px, py = ox + (x - 1) * c, oy + (y - 1) * c
       if inset < c * 0.5 then
-        if region[k] then
-          local fill = lose and mix(col, th.bg, 0.45) or col
-          setc(fill)
-          local pad = math.floor(inset)
-          lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
-        else
-          local pad = math.max(1, math.floor(inset + 0.5))
-          local tile_col = lose and mix(col, th.bg, 0.52) or col
-          setc(tile_col)
-          lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
-          if s.marks and c >= 18 then
-            mark(ci, px + c / 2, py + c / 2, math.max(4, c * 0.24), { 1, 1, 1 }, lose and 0.18 or 0.40)
-          end
-        end
-      end
-    end
-  end
-
-  -- Pass 2: crisp ink frontier outline along edges between owned & unowned cells
-  lg.setLineWidth(2)
-  setc(th.frontier, lose and 0.40 or 0.92)
-  for y = 1, st.h do
-    for x = 1, n do
-      local k = (y - 1) * n + x
-      if region[k] then
-        local px, py = ox + (x - 1) * c, oy + (y - 1) * c
-        if y > 1 and not region[k - n] then
-          lg.line(px, py + 1, px + c, py + 1)
-        end
-        if y < st.h and not region[k + n] then
-          lg.line(px, py + c - 1, px + c, py + c - 1)
-        end
-        if x > 1 and not region[k - 1] then
-          lg.line(px + 1, py, px + 1, py + c)
-        end
-        if x < n and not region[k + 1] then
-          lg.line(px + c - 1, py, px + c - 1, py + c)
-        end
-      end
-    end
-  end
-
-  -- Quiet top-left origin pip
-  if region[1] then
-    setc(th.frontier, lose and 0.28 or 0.72)
-    lg.rectangle("fill", ox + 5, oy + 5, 4, 4)
-  end
-
-  -- Pass 3: calm, crisp corner ticks on previewed frontier cells
-  if s.scene == "play" then
-    local blen = math.max(5, math.floor(c * 0.28))
-    for y = 1, st.h do
-      for x = 1, n do
-        local k = (y - 1) * n + x
-        if preview[k] then
-          local px, py = ox + (x - 1) * c, oy + (y - 1) * c
-          corner_ticks(px + 2, py + 2, c - 4, c - 4, blen, { 0.08, 0.07, 0.06, 0.65 }, 3)
-          corner_ticks(px + 3, py + 3, c - 6, c - 6, blen - 1, { 0.98, 0.96, 0.92, 0.96 }, 2)
-        end
+        local fill = lose and mix(col, th.bg, 0.48) or col
+        setc(fill)
+        local pad = math.floor(inset)
+        lg.rectangle("fill", px + pad, py + pad, c - pad * 2, c - pad * 2)
       end
     end
   end
@@ -820,73 +640,41 @@ local function draw_sidebar()
   local th = cur_theme()
   local cur_idx = st.grid[1][1]
 
-  -- Vertical stack of 6 pure colour bars (Up/Down selects; bold caret marks choice)
+  -- Vertical stack of 6 pure solid colour bars (all 6 visible; caret marks selection)
   for i = 1, COLORS do
     local rx, ry, rw, rh = swatch_rect(i)
     local is_cur = (i == cur_idx)
     local is_sel = (i == s.sel and s.scene == "play")
     local col = PALETTE[i]
 
-    -- Bold crisp caret in front of the selected colour
+    -- Crisp caret in front of the selected colour
     if is_sel then
       caret(SIDE_X + 2, math.floor(ry + rh / 2), 7, th.ink)
     end
 
-    if is_cur then
-      -- Active flood colour: quiet recessed slot with a left colour edge bar
-      setc(th.surface)
-      lg.rectangle("fill", rx, ry, rw, rh)
-      setc(col, 0.55)
-      lg.rectangle("fill", rx, ry, 8, rh)
-      lg.setLineWidth(is_sel and 2 or 1)
-      setc(is_sel and th.ink or th.border)
-      lg.rectangle("line", rx + 0.5, ry + 0.5, rw - 1, rh - 1)
+    setc(col)
+    lg.rectangle("fill", rx, ry, rw, rh)
 
-      if s.marks then
-        mark(i, rx + 22, ry + rh / 2, 7, th.muted, 0.65)
-      end
-
-      lg.setFont(fonts.micro)
-      setc(th.muted)
-      lg.printf("ACTIVE", rx + 14, ry + 16, rw - 24, "right")
-    else
-      -- Pure flat matte colour bar (no desktop digits, no default shapes)
-      setc(col)
-      lg.rectangle("fill", rx, ry, rw, rh)
-
-      if s.marks then
-        mark(i, rx + 22, ry + rh / 2, 8, { 1, 1, 1 }, 0.88)
-      end
-
-      -- Selected colour gets a crisp ink outline & clean +N gain tag
-      if is_sel then
-        lg.setLineWidth(2.5)
-        setc(th.ink)
-        lg.rectangle("line", rx - 1.5, ry - 1.5, rw + 3, rh + 3)
-
-        local g = rules.gain(st, i)
-        local tag = "+" .. tostring(g)
-        local tw = math.max(38, fonts.small:getWidth(tag) + 14)
-        setc(THEMES.paper.ink, 0.88)
-        lg.rectangle("fill", rx + rw - tw - 7, ry + 11, tw, 26)
-        lg.setFont(fonts.small)
-        setc(THEMES.paper.bg)
-        lg.printf(tag, rx + rw - tw - 7, ry + 16, tw, "center")
-      end
+    -- Quiet gain tag on the selected bar when it adds tiles
+    if is_sel and not is_cur then
+      local g = rules.gain(st, i)
+      local tag = "+" .. tostring(g)
+      local tw = math.max(38, fonts.small:getWidth(tag) + 14)
+      setc(THEMES.paper.ink, 0.88)
+      lg.rectangle("fill", rx + rw - tw - 7, ry + 11, tw, 26)
+      lg.setFont(fonts.small)
+      setc(THEMES.paper.bg)
+      lg.printf(tag, rx + rw - tw - 7, ry + 15, tw, "center")
     end
   end
 
-  -- Quiet minimal console legend at the bottom of the sidebar (no theme toggle here)
-  lg.setLineWidth(1)
-  setc(th.border, 0.55)
-  lg.line(SWATCH_X, 396, SIDE_X + SIDE_W, 396)
-
+  -- Quiet minimal console legend at the bottom of the sidebar
   lg.setFont(fonts.micro)
   setc(th.muted)
   if s.scene == "play" then
-    lg.print("UP/DN  PICK", SWATCH_X, 407)
-    lg.print("A  FLOOD", SWATCH_X, 426)
-    lg.print("Y  NEW   ·   B  MENU", SWATCH_X, 445)
+    lg.print("UP/DN  PICK", SWATCH_X, 405)
+    lg.print("A  FLOOD", SWATCH_X, 424)
+    lg.print("Y  NEW   ·   B  MENU", SWATCH_X, 443)
   else
     lg.print("A  NEW BOARD", SWATCH_X, 412)
     lg.print("B  MENU", SWATCH_X, 432)
@@ -903,8 +691,8 @@ local function draw_gameover()
   setc(th.scrim)
   lg.rectangle("fill", BOARD_X, BOARD_Y, BOARD_PX, BOARD_PX)
 
-  -- Clean editorial print result card
-  local pw, ph = 316, 162
+  -- Clean editorial print result card (no wins/streaks/best clutter)
+  local pw, ph = 310, 144
   local px, py = math.floor(cx - pw / 2), math.floor(cy - ph / 2)
   setc(th.bg)
   lg.rectangle("fill", px, py, pw, ph)
@@ -930,7 +718,6 @@ local function draw_gameover()
   lg.printf(st.won and "CLEARED" or "OUT OF MOVES", px, py + 18, pw, "center")
 
   -- Primary outcome readout
-  local stat = s.stats[s.size]
   local primary
   if st.won then
     local spare = st.max_moves - st.moves
@@ -942,20 +729,15 @@ local function draw_gameover()
   end
   lg.setFont(fonts.sub)
   setc(th.ink)
-  lg.printf(primary, px, py + 68, pw, "center")
-
-  -- Streak line
-  lg.setFont(fonts.small)
-  setc(th.muted)
-  lg.printf("STREAK " .. stat.streak .. "   ·   BEST " .. stat.best_streak, px, py + 94, pw, "center")
+  lg.printf(primary, px, py + 70, pw, "center")
 
   -- Clean action footer
   lg.setLineWidth(1)
   setc(th.border, 0.6)
-  lg.line(px + 24, py + 122, px + pw - 24, py + 122)
+  lg.line(px + 24, py + 104, px + pw - 24, py + 104)
   lg.setFont(fonts.micro)
   setc(th.muted)
-  lg.printf(st.won and "A  NEW BOARD     ·     B  MENU" or "A  TRY AGAIN     ·     B  MENU", px, py + 132, pw, "center")
+  lg.printf(st.won and "A  NEW BOARD     ·     B  MENU" or "A  TRY AGAIN     ·     B  MENU", px, py + 115, pw, "center")
 end
 
 function game.draw()
