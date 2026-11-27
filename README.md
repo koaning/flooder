@@ -22,12 +22,12 @@ You own the region in the top-left corner. Each move repaints it with a new colo
 absorbs every touching cell of that colour. Flood the whole board before you run out of
 moves. Each board's move limit is what a greedy bot (always take the biggest gain) needs to
 clear it, so every board can be won but you have to play at least as well as the bot.
-Pick a small (10×10), medium (14×14) or large (18×18) board; wins and streaks are kept per size.
+Pick a 10×10, 14×14 or 18×18 grid from the menu.
 
 Controls: D-pad / arrows pick a colour in the vertical sidebar (the cells it would take are
 outlined), A / Space / Enter floods. Keys 1–6 or clicking a cell / colour bar pick directly.
-B / Backspace returns to the menu (where you can switch between Paper and Ink themes or toggle
-optional colour-blind marks), Y / R deals a new board, Esc (or Back) quits.
+B / Backspace returns to the menu (where you can pick the grid size and switch between Paper
+and Ink themes), Y / R deals a new board, Esc (or Back) quits.
 
 ## Credits
 
