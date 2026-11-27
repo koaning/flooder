@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: a6ba375
+_src_path: gh:koaning/geyser-love2d-template
+author: koaning
+description: flood the board in as few moves as you can
+game: flooder
+height: 480
+title: Flooder
+width: 640
